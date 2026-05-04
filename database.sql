@@ -4,7 +4,6 @@
 -- Database: student_hub
 -- Author: Senior Full Stack Developer
 -- Date: 2026-05-04
--- Normalization: 3NF (Third Normal Form)
 -- ========================================
 
 -- Create Database
@@ -13,8 +12,6 @@ USE `student_hub`;
 
 -- ========================================
 -- 1. ROLES TABLE
--- Master table for role definitions
--- Normalized: 1NF - All values are atomic
 -- ========================================
 CREATE TABLE `roles` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
@@ -23,6 +20,7 @@ CREATE TABLE `roles` (
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+-- Insert default roles
 INSERT INTO `roles` (`name`, `description`) VALUES
 ('admin', 'Administrator with full system access'),
 ('teacher', 'Teacher who creates courses and posts assignments'),
@@ -30,9 +28,6 @@ INSERT INTO `roles` (`name`, `description`) VALUES
 
 -- ========================================
 -- 2. USERS TABLE
--- Primary entity for all platform users
--- Normalized: 3NF - No transitive dependencies
--- Soft delete: deleted_at column for data preservation
 -- ========================================
 CREATE TABLE `users` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
@@ -54,9 +49,6 @@ CREATE TABLE `users` (
 
 -- ========================================
 -- 3. COURSES TABLE
--- Courses created by teachers
--- Normalized: 3NF - Course info separated from users
--- Foreign key ensures referential integrity
 -- ========================================
 CREATE TABLE `courses` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
@@ -76,10 +68,7 @@ CREATE TABLE `courses` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ========================================
--- 4. COURSE_USERS TABLE
--- Junction table for Many-to-Many relationship
--- Normalized: 2NF - Composite key, all non-key attributes depend on full key
--- Tracks student enrollment and progress
+-- 4. COURSE_USERS TABLE (Many-to-Many)
 -- ========================================
 CREATE TABLE `course_users` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
@@ -97,9 +86,6 @@ CREATE TABLE `course_users` (
 
 -- ========================================
 -- 5. POSTS TABLE
--- Various types of posts in courses
--- Normalized: 3NF - All attributes depend on primary key
--- Types: assignment, announcement, lesson, discussion
 -- ========================================
 CREATE TABLE `posts` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
@@ -125,9 +111,6 @@ CREATE TABLE `posts` (
 
 -- ========================================
 -- 6. COMMENTS TABLE
--- Comments on posts with nested reply support
--- Normalized: 3NF - Self-referencing for nested comments
--- parent_comment_id allows reply threads
 -- ========================================
 CREATE TABLE `comments` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
@@ -147,10 +130,7 @@ CREATE TABLE `comments` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ========================================
--- 7. MATERIALS TABLE
--- File uploads (documents, videos, resources)
--- Normalized: 3NF - Separate table for file metadata
--- Linked to either course or specific post
+-- 7. MATERIALS TABLE (File uploads)
 -- ========================================
 CREATE TABLE `materials` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
@@ -171,9 +151,6 @@ CREATE TABLE `materials` (
 
 -- ========================================
 -- 8. NOTIFICATIONS TABLE
--- System notifications for users
--- Normalized: 3NF - Separate from user activity
--- is_read tracks notification status
 -- ========================================
 CREATE TABLE `notifications` (
   `id` INT PRIMARY KEY AUTO_INCREMENT,
@@ -190,23 +167,23 @@ CREATE TABLE `notifications` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ========================================
--- SAMPLE DATA
+-- DML - DATA MANIPULATION LANGUAGE EXAMPLES
 -- ========================================
 
--- Insert sample users (passwords are hashed with password_hash() in PHP)
+-- INSERT: Create sample users
 INSERT INTO `users` (`name`, `email`, `password`, `role_id`, `bio`) VALUES
-('John Teacher', 'john@example.com', '$2y$10$YourHashedPassword1', 2, 'Passionate educator with 10 years experience'),
-('Alice Student', 'alice@example.com', '$2y$10$YourHashedPassword2', 3, 'Eager learner interested in web development'),
+('John Teacher', 'john@example.com', '$2y$10$YourHashedPassword1', 2, 'Passionate educator'),
+('Alice Student', 'alice@example.com', '$2y$10$YourHashedPassword2', 3, 'Eager learner'),
 ('Bob Student', 'bob@example.com', '$2y$10$YourHashedPassword3', 3, 'Computer Science enthusiast'),
 ('Emma Admin', 'admin@example.com', '$2y$10$YourHashedPassword4', 1, 'System administrator');
 
--- Insert sample courses
+-- INSERT: Create sample courses
 INSERT INTO `courses` (`name`, `description`, `teacher_id`, `category`, `is_published`) VALUES
-('Introduction to PHP', 'Learn PHP from basics to advanced OOP principles', 1, 'Programming', TRUE),
-('Web Development Fundamentals', 'Master HTML, CSS, and JavaScript', 1, 'Web Development', TRUE),
-('Database Design with MySQL', 'Learn database design, normalization, and optimization', 1, 'Database', FALSE);
+('Introduction to PHP', 'Learn PHP from basics to advanced', 1, 'Programming', TRUE),
+('Web Development Fundamentals', 'HTML, CSS, JavaScript basics', 1, 'Web Development', TRUE),
+('Database Design', 'Learn MySQL and database design', 1, 'Database', FALSE);
 
--- Enroll students in courses
+-- INSERT: Enroll students in courses
 INSERT INTO `course_users` (`user_id`, `course_id`, `role`) VALUES
 (2, 1, 'student'),
 (2, 2, 'student'),
@@ -214,16 +191,16 @@ INSERT INTO `course_users` (`user_id`, `course_id`, `role`) VALUES
 (3, 2, 'student'),
 (3, 3, 'student');
 
--- Insert sample posts
+-- INSERT: Create sample posts
 INSERT INTO `posts` (`user_id`, `course_id`, `title`, `content`, `type`, `due_date`) VALUES
-(1, 1, 'Assignment 1: Variables and Data Types', 'Create a PHP script demonstrating understanding of variables and data types. Submit by Friday.', 'assignment', DATE_ADD(NOW(), INTERVAL 3 DAY)),
-(1, 1, 'Welcome to Introduction to PHP', 'Welcome everyone! This course covers all PHP basics and OOP principles...', 'announcement', NULL),
-(1, 2, 'CSS Layout Techniques: Flexbox', 'Today we will learn about Flexbox and Grid for modern layouts...', 'lesson', NULL),
+(1, 1, 'First Assignment: Variables and Data Types', 'Create a PHP script that demonstrates understanding of variables and data types. Submit by Friday.', 'assignment', DATE_ADD(NOW(), INTERVAL 3 DAY)),
+(1, 1, 'Course Introduction Announcement', 'Welcome to Introduction to PHP! This course covers all basics...', 'announcement', NULL),
+(1, 2, 'CSS Layout Techniques Lesson', 'Today we will learn about Flexbox and Grid...', 'lesson', NULL),
 (2, 1, 'Question about array functions', 'Can someone explain the difference between array_map and array_filter?', 'discussion', NULL);
 
--- Insert sample comments
+-- INSERT: Create sample comments
 INSERT INTO `comments` (`post_id`, `user_id`, `content`) VALUES
-(4, 1, 'Great question! array_map applies a function to every element and returns new array...'),
+(4, 1, 'Great question! array_map applies a function to every element...'),
 (4, 3, 'This really helped me understand the difference!'),
 (1, 2, 'Thanks for the assignment! Started working on it.'),
 (1, 3, 'Is this assignment due on Friday or Sunday?');
