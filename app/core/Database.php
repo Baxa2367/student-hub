@@ -1,12 +1,9 @@
 <?php
 /**
- * Database.php - PDO Database Connection Class
+ * Database.php
  * 
- * Implements Singleton pattern for single database instance.
- * Provides methods for query execution with prepared statements.
- * 
- * @author Senior Full Stack Developer
- * @version 1.0
+ * PDO-based database connection and query execution class.
+ * Implements the Singleton pattern for single database instance.
  */
 
 namespace App\Core;
@@ -125,7 +122,7 @@ class Database
     }
 
     /**
-     * Count rows affected by query
+     * Count rows
      * 
      * @param string $sql SQL query
      * @param array $params Parameters

@@ -1,12 +1,9 @@
 <?php
 /**
- * Controller.php - Base Controller Class
+ * Controller.php
  * 
- * All controllers extend this base class.
- * Provides common functionality like view rendering and data passing.
- * 
- * @author Senior Full Stack Developer
- * @version 1.0
+ * Base Controller class for all application controllers.
+ * Provides view rendering and common helper methods.
  */
 
 namespace App\Core;
@@ -14,25 +11,80 @@ namespace App\Core;
 class Controller
 {
     /**
-     * Load a view file and pass data
-     * 
-     * @param string $view View file name (without .php)
-     * @param array $data Data to pass to view
+     * @var array View data
      */
-    protected function view($view, $data = [])
+    protected $data = [];
+
+    /**
+     * @var string View path
+     */
+    protected $viewPath = 'app/views/';
+
+    /**
+     * Constructor
+     */
+    public function __construct()
     {
-        // Check if view file exists
-        $viewFile = __DIR__ . "/../views/" . $view . ".php";
+        $this->checkAuth();
+    }
+
+    /**
+     * Set view data
+     * 
+     * @param string $key
+     * @param mixed $value
+     * @return void
+     */
+    public function set($key, $value)
+    {
+        $this->data[$key] = $value;
+    }
+
+    /**
+     * Render view
+     * 
+     * @param string $view
+     * @param array $data
+     * @return void
+     */
+    public function render($view, $data = [])
+    {
+        $data = array_merge($this->data, $data);
+        $viewFile = $this->viewPath . str_replace('.', '/', $view) . '.php';
 
         if (!file_exists($viewFile)) {
-            die("View file not found: " . $viewFile);
+            die("View not found: {$viewFile}");
         }
 
-        // Extract data variables for use in view
         extract($data);
+        include $viewFile;
+    }
 
-        // Include the view file
-        require_once $viewFile;
+    /**
+     * Render JSON response
+     * 
+     * @param array $data
+     * @param int $status
+     * @return void
+     */
+    public function json($data, $status = 200)
+    {
+        header('Content-Type: application/json');
+        http_response_code($status);
+        echo json_encode($data);
+        exit;
+    }
+
+    /**
+     * Redirect to URL
+     * 
+     * @param string $url
+     * @return void
+     */
+    public function redirect($url)
+    {
+        header('Location: ' . $url);
+        exit;
     }
 
     /**
@@ -40,114 +92,55 @@ class Controller
      * 
      * @return bool
      */
-    protected function isAuthenticated()
+    protected function checkAuth()
     {
-        return isset($_SESSION['user_id']);
+        // Override in child classes if needed
+        return true;
     }
 
     /**
-     * Get current authenticated user ID
+     * Check user role
      * 
-     * @return int|null
-     */
-    protected function getCurrentUserId()
-    {
-        return $_SESSION['user_id'] ?? null;
-    }
-
-    /**
-     * Get current user's role
-     * 
-     * @return string|null
-     */
-    protected function getCurrentUserRole()
-    {
-        return $_SESSION['user_role'] ?? null;
-    }
-
-    /**
-     * Redirect to another page
-     * 
-     * @param string $url URL to redirect to
-     */
-    protected function redirect($url)
-    {
-        header("Location: " . $url);
-        exit();
-    }
-
-    /**
-     * Check if user has required role
-     * 
-     * @param string $role Required role
+     * @param string $role
      * @return bool
      */
     protected function hasRole($role)
     {
-        return $this->getCurrentUserRole() === $role;
+        if (!isset($_SESSION['user'])) {
+            return false;
+        }
+        return $_SESSION['user']['role'] === $role;
     }
 
     /**
-     * Check if user is teacher or admin
-     * 
-     * @return bool
-     */
-    protected function isTeacherOrAdmin()
-    {
-        $role = $this->getCurrentUserRole();
-        return $role === 'teacher' || $role === 'admin';
-    }
-
-    /**
-     * Get JSON request data
-     * 
-     * @return array
-     */
-    protected function getJsonData()
-    {
-        return json_decode(file_get_contents('php://input'), true) ?? [];
-    }
-
-    /**
-     * Return JSON response
-     * 
-     * @param array $data Response data
-     * @param int $statusCode HTTP status code
-     */
-    protected function jsonResponse($data, $statusCode = 200)
-    {
-        header('Content-Type: application/json');
-        http_response_code($statusCode);
-        echo json_encode($data);
-        exit();
-    }
-
-    /**
-     * Set flash message for next request
-     * 
-     * @param string $message Message text
-     * @param string $type Type: success, error, warning, info
-     */
-    protected function setFlash($message, $type = 'info')
-    {
-        $_SESSION['flash'] = [
-            'message' => $message,
-            'type' => $type
-        ];
-    }
-
-    /**
-     * Get and clear flash message
+     * Get current user
      * 
      * @return array|null
      */
-    protected function getFlash()
+    protected function getCurrentUser()
     {
-        if (isset($_SESSION['flash'])) {
-            $flash = $_SESSION['flash'];
-            unset($_SESSION['flash']);
-            return $flash;
-        }
-        return null;
+        return $_SESSION['user'] ?? null;
+    }
+
+    /**
+     * Set error message
+     * 
+     * @param string $message
+     * @return void
+     */
+    protected function setError($message)
+    {
+        $_SESSION['error'] = $message;
+    }
+
+    /**
+     * Set success message
+     * 
+     * @param string $message
+     * @return void
+     */
+    protected function setSuccess($message)
+    {
+        $_SESSION['success'] = $message;
     }
 }

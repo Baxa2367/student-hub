@@ -1,12 +1,9 @@
 <?php
 /**
- * App.php - Router and Application Bootstrap
+ * App.php
  * 
- * Handles routing, request parsing, and controller instantiation.
- * Implements basic MVC router pattern.
- * 
- * @author Senior Full Stack Developer
- * @version 1.0
+ * Main application router and bootstrapper.
+ * Handles URL routing and dispatches requests to controllers.
  */
 
 namespace App\Core;
@@ -14,98 +11,191 @@ namespace App\Core;
 class App
 {
     /**
-     * @var string Current controller
+     * @var string Base URL
      */
-    protected $controller = 'Home';
+    protected $baseUrl = '';
 
     /**
-     * @var string Current method/action
+     * @var array Routes configuration
      */
-    protected $method = 'index';
+    protected $routes = [
+        'GET' => [],
+        'POST' => [],
+    ];
 
     /**
-     * @var array URL parameters
+     * @var string Current request method
      */
-    protected $params = [];
+    protected $method;
 
     /**
-     * Constructor - Parse URL and prepare routing
+     * @var string Current URI
+     */
+    protected $uri;
+
+    /**
+     * Constructor
      */
     public function __construct()
     {
-        $this->parseUrl();
+        $config = require(__DIR__ . '/../../config/config.php');
+        $this->baseUrl = $config['app_url'];
+        $this->method = $_SERVER['REQUEST_METHOD'];
+        $this->uri = $this->parseUri();
     }
 
     /**
-     * Parse the URL from REQUEST_URI
-     * URL format: /student-hub/controller/method/param1/param2
+     * Parse URI from request
+     * 
+     * @return string
      */
-    public function parseUrl()
+    protected function parseUri()
     {
-        if (isset($_GET['url'])) {
-            // Split URL by / and remove empty values
-            $url = rtrim($_GET['url'], '/');
-            $url = filter_var($url, FILTER_SANITIZE_URL);
-            $url = explode('/', $url);
-
-            // First segment is controller
-            if (!empty($url[0])) {
-                $this->controller = ucwords($url[0]);
-            }
-
-            // Second segment is method
-            if (!empty($url[1])) {
-                $this->method = $url[1];
-            }
-
-            // Remaining segments are parameters
-            $this->params = array_values($url);
-            if (!empty($this->params)) {
-                array_shift($this->params); // Remove controller
-                if (!empty($this->params)) {
-                    array_shift($this->params); // Remove method
-                }
-            }
+        $uri = $_SERVER['REQUEST_URI'];
+        $baseUrlPath = parse_url($this->baseUrl, PHP_URL_PATH);
+        
+        if (!empty($baseUrlPath)) {
+            $uri = str_replace($baseUrlPath, '', $uri);
         }
+
+        $uri = trim($uri, '/');
+        $uri = rtrim($uri, '/');
+
+        // Remove query string
+        if (strpos($uri, '?') !== false) {
+            $uri = substr($uri, 0, strpos($uri, '?'));
+        }
+
+        return $uri ?: 'index';
     }
 
     /**
-     * Run the application by loading controller and executing method
+     * Register GET route
+     * 
+     * @param string $path
+     * @param string $handler Controller@method
+     * @return void
      */
-    public function run()
+    public function get($path, $handler)
     {
-        // Build controller class name
-        $controllerName = "App\\Controllers\\" . $this->controller . "Controller";
+        $this->routes['GET'][$path] = $handler;
+    }
 
-        // Check if controller file exists
-        $controllerFile = __DIR__ . "/../controllers/" . $this->controller . "Controller.php";
+    /**
+     * Register POST route
+     * 
+     * @param string $path
+     * @param string $handler Controller@method
+     * @return void
+     */
+    public function post($path, $handler)
+    {
+        $this->routes['POST'][$path] = $handler;
+    }
 
-        if (!file_exists($controllerFile)) {
-            // If controller doesn't exist, use 404
-            $this->show404();
+    /**
+     * Dispatch request to appropriate controller
+     * 
+     * @return void
+     */
+    public function dispatch()
+    {
+        $handler = $this->getMatchingRoute();
+
+        if (!$handler) {
+            $this->notFound();
             return;
         }
 
-        // Create controller instance
-        $controller = new $controllerName();
-
-        // Check if method exists
-        if (!method_exists($controller, $this->method)) {
-            $this->show404();
-            return;
-        }
-
-        // Call the method with parameters
-        call_user_func_array([$controller, $this->method], $this->params);
+        $this->executeHandler($handler);
     }
 
     /**
-     * Display 404 error page
+     * Get matching route for current request
+     * 
+     * @return string|null
      */
-    private function show404()
+    protected function getMatchingRoute()
+    {
+        $routes = $this->routes[$this->method] ?? [];
+
+        // Exact match
+        if (isset($routes[$this->uri])) {
+            return $routes[$this->uri];
+        }
+
+        // Pattern match with parameters
+        foreach ($routes as $path => $handler) {
+            if ($this->matchRoute($path, $this->uri)) {
+                return $handler;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Check if route matches URI pattern
+     * 
+     * @param string $path
+     * @param string $uri
+     * @return bool
+     */
+    protected function matchRoute($path, $uri)
+    {
+        $pathParts = explode('/', $path);
+        $uriParts = explode('/', $uri);
+
+        if (count($pathParts) !== count($uriParts)) {
+            return false;
+        }
+
+        foreach ($pathParts as $key => $part) {
+            if (strpos($part, '{') === 0) {
+                continue; // Parameter, skip
+            }
+            if ($part !== $uriParts[$key]) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Execute controller handler
+     * 
+     * @param string $handler Controller@method
+     * @return void
+     */
+    protected function executeHandler($handler)
+    {
+        [$controller, $method] = explode('@', $handler);
+
+        $controllerClass = 'App\\Controllers\\' . $controller;
+
+        if (!class_exists($controllerClass)) {
+            die("Controller not found: {$controllerClass}");
+        }
+
+        $instance = new $controllerClass();
+
+        if (!method_exists($instance, $method)) {
+            die("Method not found: {$method}");
+        }
+
+        call_user_func([$instance, $method]);
+    }
+
+    /**
+     * Handle 404 Not Found
+     * 
+     * @return void
+     */
+    protected function notFound()
     {
         http_response_code(404);
-        echo "<h1>404 - Page Not Found</h1>";
-        echo "<p>The page you are looking for does not exist.</p>";
+        echo "404 - Page Not Found";
+        exit;
     }
 }
