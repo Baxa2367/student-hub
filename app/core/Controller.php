@@ -2,8 +2,11 @@
 /**
  * Controller.php
  * 
- * Base Controller class for all application controllers.
- * Provides view rendering and common helper methods.
+ * Base Controller class - all controllers inherit from this.
+ * Handles view rendering and common functionality.
+ * 
+ * @author Senior Full Stack Developer
+ * @version 1.0
  */
 
 namespace App\Core;
@@ -11,80 +14,82 @@ namespace App\Core;
 class Controller
 {
     /**
-     * @var array View data
+     * @var array Data to pass to view
      */
     protected $data = [];
-
-    /**
-     * @var string View path
-     */
-    protected $viewPath = 'app/views/';
 
     /**
      * Constructor
      */
     public function __construct()
     {
-        $this->checkAuth();
+        // Initialize common properties
+        $this->data['app_name'] = 'Student Hub';
+        $this->data['user'] = $_SESSION['user'] ?? null;
     }
 
     /**
-     * Set view data
+     * Render a view file
      * 
-     * @param string $key
-     * @param mixed $value
+     * @param string $view View file path (without .php)
+     * @param array $data Data to pass to view
      * @return void
      */
-    public function set($key, $value)
+    protected function render($view, $data = [])
     {
-        $this->data[$key] = $value;
-    }
-
-    /**
-     * Render view
-     * 
-     * @param string $view
-     * @param array $data
-     * @return void
-     */
-    public function render($view, $data = [])
-    {
-        $data = array_merge($this->data, $data);
-        $viewFile = $this->viewPath . str_replace('.', '/', $view) . '.php';
-
-        if (!file_exists($viewFile)) {
-            die("View not found: {$viewFile}");
+        // Merge data with default data
+        $this->data = array_merge($this->data, $data);
+        
+        // Extract data to variables
+        extract($this->data);
+        
+        // Build view path
+        $viewPath = __DIR__ . '/../views/' . str_replace('.', '/', $view) . '.php';
+        
+        if (!file_exists($viewPath)) {
+            die("View not found: {$viewPath}");
         }
-
-        extract($data);
-        include $viewFile;
+        
+        // Load view
+        require_once($viewPath);
     }
 
     /**
-     * Render JSON response
+     * Redirect to a URL
+     * 
+     * @param string $url
+     * @return void
+     */
+    protected function redirect($url)
+    {
+        header('Location: ' . $url);
+        exit();
+    }
+
+    /**
+     * Set HTTP status code
+     * 
+     * @param int $code
+     * @return void
+     */
+    protected function setStatus($code)
+    {
+        http_response_code($code);
+    }
+
+    /**
+     * Return JSON response
      * 
      * @param array $data
      * @param int $status
      * @return void
      */
-    public function json($data, $status = 200)
+    protected function json($data, $status = 200)
     {
         header('Content-Type: application/json');
         http_response_code($status);
         echo json_encode($data);
-        exit;
-    }
-
-    /**
-     * Redirect to URL
-     * 
-     * @param string $url
-     * @return void
-     */
-    public function redirect($url)
-    {
-        header('Location: ' . $url);
-        exit;
+        exit();
     }
 
     /**
@@ -92,24 +97,9 @@ class Controller
      * 
      * @return bool
      */
-    protected function checkAuth()
+    protected function isAuthenticated()
     {
-        // Override in child classes if needed
-        return true;
-    }
-
-    /**
-     * Check user role
-     * 
-     * @param string $role
-     * @return bool
-     */
-    protected function hasRole($role)
-    {
-        if (!isset($_SESSION['user'])) {
-            return false;
-        }
-        return $_SESSION['user']['role'] === $role;
+        return isset($_SESSION['user']);
     }
 
     /**
@@ -123,24 +113,74 @@ class Controller
     }
 
     /**
-     * Set error message
+     * Check if user has specific role
      * 
-     * @param string $message
-     * @return void
+     * @param string $role
+     * @return bool
      */
-    protected function setError($message)
+    protected function hasRole($role)
     {
-        $_SESSION['error'] = $message;
+        return $this->isAuthenticated() && $_SESSION['user']['role'] === $role;
     }
 
     /**
-     * Set success message
+     * Check if user is admin
      * 
-     * @param string $message
+     * @return bool
+     */
+    protected function isAdmin()
+    {
+        return $this->hasRole('admin');
+    }
+
+    /**
+     * Check if user is teacher
+     * 
+     * @return bool
+     */
+    protected function isTeacher()
+    {
+        return $this->hasRole('teacher');
+    }
+
+    /**
+     * Check if user is student
+     * 
+     * @return bool
+     */
+    protected function isStudent()
+    {
+        return $this->hasRole('student');
+    }
+
+    /**
+     * Require authentication
+     * Redirects to login if not authenticated
+     * 
      * @return void
      */
-    protected function setSuccess($message)
+    protected function requireAuth()
     {
-        $_SESSION['success'] = $message;
+        if (!$this->isAuthenticated()) {
+            header('Location: /student-hub/public/index.php?route=auth/login');
+            exit();
+        }
+    }
+
+    /**
+     * Require specific role
+     * Returns 403 if user doesn't have role
+     * 
+     * @param string $role
+     * @return void
+     */
+    protected function requireRole($role)
+    {
+        $this->requireAuth();
+        
+        if (!$this->hasRole($role)) {
+            $this->setStatus(403);
+            die('Access Denied');
+        }
     }
 }

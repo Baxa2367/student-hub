@@ -2,8 +2,11 @@
 /**
  * Model.php
  * 
- * Base Model class for all application models.
- * Provides common database operations (CRUD).
+ * Base Model class - all models inherit from this.
+ * Provides common database operations.
+ * 
+ * @author Senior Full Stack Developer
+ * @version 1.0
  */
 
 namespace App\Core;
@@ -18,12 +21,12 @@ class Model
     protected $db;
 
     /**
-     * @var string Table name
+     * @var string Table name for the model
      */
-    protected $table = '';
+    protected $table;
 
     /**
-     * Constructor
+     * Constructor - initialize database connection
      */
     public function __construct()
     {
@@ -31,7 +34,7 @@ class Model
     }
 
     /**
-     * Find a record by ID
+     * Find by ID
      * 
      * @param int $id
      * @return array|null
@@ -43,7 +46,7 @@ class Model
     }
 
     /**
-     * Get all records
+     * Find all records
      * 
      * @return array
      */
@@ -54,29 +57,29 @@ class Model
     }
 
     /**
-     * Get records with pagination
+     * Find by column
      * 
-     * @param int $page
-     * @param int $limit
-     * @return array
+     * @param string $column
+     * @param mixed $value
+     * @return array|null
      */
-    public function paginate($page = 1, $limit = 10)
+    public function findBy($column, $value)
     {
-        $offset = ($page - 1) * $limit;
-        $sql = "SELECT * FROM {$this->table} WHERE deleted_at IS NULL ORDER BY created_at DESC LIMIT ? OFFSET ?";
-        return $this->db->fetchAll($sql, [$limit, $offset]);
+        $sql = "SELECT * FROM {$this->table} WHERE {$column} = ? AND deleted_at IS NULL";
+        return $this->db->fetchOne($sql, [$value]);
     }
 
     /**
-     * Count all records
+     * Find all by column
      * 
-     * @return int
+     * @param string $column
+     * @param mixed $value
+     * @return array
      */
-    public function count()
+    public function findAllBy($column, $value)
     {
-        $sql = "SELECT COUNT(*) as total FROM {$this->table} WHERE deleted_at IS NULL";
-        $result = $this->db->fetchOne($sql);
-        return $result['total'] ?? 0;
+        $sql = "SELECT * FROM {$this->table} WHERE {$column} = ? AND deleted_at IS NULL ORDER BY created_at DESC";
+        return $this->db->fetchAll($sql, [$value]);
     }
 
     /**
@@ -87,13 +90,12 @@ class Model
      */
     public function create($data)
     {
-        $columns = array_keys($data);
-        $values = array_values($data);
-        $placeholders = implode(',', array_fill(0, count($columns), '?'));
-        $columnList = implode(',', $columns);
-
-        $sql = "INSERT INTO {$this->table} ({$columnList}) VALUES ({$placeholders})";
-        $this->db->query($sql, $values);
+        $columns = implode(', ', array_keys($data));
+        $placeholders = implode(', ', array_fill(0, count($data), '?'));
+        
+        $sql = "INSERT INTO {$this->table} ({$columns}) VALUES ({$placeholders})";
+        $this->db->query($sql, array_values($data));
+        
         return $this->db->lastInsertId();
     }
 
@@ -107,14 +109,20 @@ class Model
     public function update($id, $data)
     {
         $data['updated_at'] = date('Y-m-d H:i:s');
-        $columns = array_keys($data);
-        $values = array_values($data);
-        $values[] = $id;
-
-        $setClause = implode(',', array_map(fn($col) => "{$col} = ?", $columns));
-        $sql = "UPDATE {$this->table} SET {$setClause} WHERE id = ?";
         
+        $set = [];
+        $values = [];
+        
+        foreach ($data as $key => $value) {
+            $set[] = "{$key} = ?";
+            $values[] = $value;
+        }
+        
+        $values[] = $id;
+        
+        $sql = "UPDATE {$this->table} SET " . implode(', ', $set) . " WHERE id = ?";
         $this->db->query($sql, $values);
+        
         return true;
     }
 
@@ -132,7 +140,7 @@ class Model
     }
 
     /**
-     * Hard delete (permanent)
+     * Hard delete a record (permanent)
      * 
      * @param int $id
      * @return bool
@@ -145,40 +153,33 @@ class Model
     }
 
     /**
-     * Execute raw SQL query
+     * Count records
+     * 
+     * @param string $where Optional WHERE clause
+     * @param array $params Optional parameters
+     * @return int
+     */
+    public function count($where = '', $params = [])
+    {
+        $sql = "SELECT COUNT(*) as total FROM {$this->table} WHERE deleted_at IS NULL";
+        
+        if (!empty($where)) {
+            $sql .= " AND {$where}";
+        }
+        
+        $result = $this->db->fetchOne($sql, $params);
+        return $result['total'] ?? 0;
+    }
+
+    /**
+     * Execute raw query
      * 
      * @param string $sql
      * @param array $params
      * @return array
      */
-    public function rawQuery($sql, $params = [])
+    public function raw($sql, $params = [])
     {
         return $this->db->fetchAll($sql, $params);
-    }
-
-    /**
-     * Find by column
-     * 
-     * @param string $column
-     * @param mixed $value
-     * @return array|null
-     */
-    public function findBy($column, $value)
-    {
-        $sql = "SELECT * FROM {$this->table} WHERE {$column} = ? AND deleted_at IS NULL LIMIT 1";
-        return $this->db->fetchOne($sql, [$value]);
-    }
-
-    /**
-     * Find multiple by column
-     * 
-     * @param string $column
-     * @param mixed $value
-     * @return array
-     */
-    public function findAllBy($column, $value)
-    {
-        $sql = "SELECT * FROM {$this->table} WHERE {$column} = ? AND deleted_at IS NULL ORDER BY created_at DESC";
-        return $this->db->fetchAll($sql, [$value]);
     }
 }

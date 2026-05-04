@@ -1,46 +1,41 @@
 <?php
 /**
- * Configuration File
+ * Configuration file for Student Hub application
  * 
- * Central configuration for the Student Hub application.
- * Database credentials, app settings, and constants.
+ * @author Senior Full Stack Developer
+ * @version 1.0
  */
 
 return [
-    // Application Settings
-    'app_name' => 'Student Hub',
-    'app_version' => '1.0.0',
-    'app_url' => 'http://localhost/student-hub',
-    'app_timezone' => 'UTC',
-    'debug_mode' => true,
-
     // Database Configuration
     'db_host' => 'localhost',
-    'db_name' => 'student_hub',
     'db_user' => 'root',
     'db_pass' => '',
-    'db_port' => 3306,
+    'db_name' => 'student_hub',
+
+    // Application Settings
+    'app_name' => 'Student Hub',
+    'app_url' => 'http://localhost/student-hub',
+    'app_debug' => true,
+    'app_timezone' => 'UTC',
 
     // Session Configuration
-    'session_lifetime' => 3600,
+    'session_timeout' => 3600, // 1 hour in seconds
     'session_name' => 'student_hub_session',
 
-    // File Upload Settings
-    'max_upload_size' => 5242880, // 5MB
-    'allowed_extensions' => ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'zip', 'jpg', 'jpeg', 'png', 'gif'],
-    'upload_path' => 'public/uploads/',
-
-    // Language Settings
-    'default_language' => 'en',
-    'supported_languages' => ['en', 'ru', 'kz'],
+    // File Upload Configuration
+    'upload_path' => __DIR__ . '/../public/uploads',
+    'max_file_size' => 10485760, // 10MB in bytes
+    'allowed_extensions' => ['jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'zip'],
 
     // Pagination
     'items_per_page' => 10,
 
-    // Roles
-    'roles' => [
-        'admin' => 1,
-        'teacher' => 2,
-        'student' => 3,
-    ],
+    // Multilanguage Support
+    'default_language' => 'en',
+    'supported_languages' => ['en', 'ru', 'kz'],
+
+    // Security
+    'password_hash_algo' => PASSWORD_BCRYPT,
+    'password_hash_options' => ['cost' => 10],
 ];
